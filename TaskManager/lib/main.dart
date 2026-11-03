@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import 'screen/login_screen.dart';
 import 'services/auth_service.dart';
-import 'screen/profile_screen.dart';
+import 'screen/task_list_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -46,19 +46,21 @@ class _AuthGateState extends State<AuthGate> {
     checkLogin();
   }
 
+
   Future<void> checkLogin() async {
     try {
       final token = await authService.getToken();
 
       if (token != null && token.isNotEmpty) {
-        final result = await authService.getProfile();
-
-        if (result['success'] == true) {
-          isLoggedIn = true;
-        }
+        // Nếu gọi API thành công thì token còn hợp lệ
+        await authService.getProfile();
+        isLoggedIn = true;
       }
     } catch (e) {
       isLoggedIn = false;
+
+      // Token không hợp lệ hoặc hết hạn thì xóa token cũ
+      await authService.logout();
     }
 
     if (mounted) {
@@ -67,6 +69,7 @@ class _AuthGateState extends State<AuthGate> {
       });
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -86,8 +89,10 @@ class _AuthGateState extends State<AuthGate> {
       );
     }
 
-    return ProfileScreen(
+    return TaskListScreen(
       onLogout: () {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+
         setState(() {
           isLoggedIn = false;
         });
