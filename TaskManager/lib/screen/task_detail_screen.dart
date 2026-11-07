@@ -21,6 +21,8 @@
     Map<String, dynamic>? task;
     bool hasChanged = false;
     bool isLoading = true;
+    String? currentUserId;
+    bool isUpdatingSharing = false;
     String? error;
 
     @override
@@ -28,6 +30,151 @@
       super.initState();
       loadTaskDetail();
     }
+
+    Future<void> changeSharedPermission(
+        dynamic user,
+        String newPermission,
+        ) async {
+      final userId = getUserId(user);
+      if (userId == null || task == null) return;
+
+      try {
+        setState(() => isUpdatingSharing = true);
+
+        final sharedUsers = task!['sharedWithIds'] as List? ?? [];
+
+        final sharedIds = sharedUsers
+            .map((user) => getUserId(user))
+            .whereType<String>()
+            .toList();
+
+        final permissions = <Map<String, dynamic>>[];
+
+        final oldPermissions =
+            task!['sharedPermissions'] as List? ?? [];
+
+        for (final item in oldPermissions) {
+          if (item is Map) {
+            final id = item['userId']?.toString();
+
+            if (id != null && sharedIds.contains(id)) {
+              permissions.add({
+                'userId': id,
+                'permission': id == userId
+                    ? newPermission
+                    : item['permission'] ?? 'viewer',
+              });
+            }
+          }
+        }
+
+        if (!permissions.any((p) => p['userId'] == userId)) {
+          permissions.add({
+            'userId': userId,
+            'permission': newPermission,
+          });
+        }
+
+        await taskService.updateTask(widget.taskId, {
+          'sharedWithIds': sharedIds,
+          'sharedPermissions': permissions,
+        });
+
+        await loadTaskDetail();
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Đã cập nhật quyền chia sẻ')),
+        );
+      } catch (e) {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi: $e')),
+        );
+      } finally {
+        if (mounted) {
+          setState(() => isUpdatingSharing = false);
+        }
+      }
+    }
+
+    Future<void> revokeSharedAccess(dynamic user) async {
+      final userId = getUserId(user);
+      if (userId == null || task == null) return;
+
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Thu hồi quyền chia sẻ'),
+          content: const Text(
+            'Bạn có chắc chắn muốn thu hồi quyền chia sẻ của người này?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Thu hồi'),
+            ),
+          ],
+        ),
+      );
+
+      if (confirm != true) return;
+
+      try {
+        setState(() => isUpdatingSharing = true);
+
+        final sharedUsers = task!['sharedWithIds'] as List? ?? [];
+
+        final sharedIds = sharedUsers
+            .map((user) => getUserId(user))
+            .whereType<String>()
+            .where((id) => id != userId)
+            .toList();
+
+        final oldPermissions =
+            task!['sharedPermissions'] as List? ?? [];
+
+        final permissions = oldPermissions
+            .where((item) =>
+        item is Map &&
+            item['userId']?.toString() != userId)
+            .map((item) => {
+          'userId': item['userId'].toString(),
+          'permission': item['permission'] ?? 'viewer',
+        })
+            .toList();
+
+        await taskService.updateTask(widget.taskId, {
+          'sharedWithIds': sharedIds,
+          'sharedPermissions': permissions,
+        });
+
+        await loadTaskDetail();
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Đã thu hồi quyền chia sẻ')),
+        );
+      } catch (e) {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi: $e')),
+        );
+      } finally {
+        if (mounted) {
+          setState(() => isUpdatingSharing = false);
+        }
+      }
+    }
+
     Future<void> editTask() async {
       final result = await Navigator.push(
         context,
@@ -52,7 +199,7 @@
 
       try {
         final result = await taskService.getTaskById(widget.taskId);
-
+        final currentUser = await taskService.getCurrentUser();
         if (!mounted) return;
 
         setState(() {
@@ -61,6 +208,8 @@
               ? Map<String, dynamic>.from(result['task'])
               : result;
         });
+        currentUserId = currentUser['id']?.toString()
+            ?? currentUser['_id']?.toString();
       } catch (e) {
         if (!mounted) return;
 
@@ -195,7 +344,23 @@
         );
       }
     }
+    String? getUserId(dynamic user) {
+      if (user == null) return null;
 
+      if (user is Map) {
+        return (user['_id'] ?? user['id'])?.toString();
+      }
+
+      return user.toString();
+    }
+
+    bool get isCreator {
+      final creatorId = getUserId(task?['createdBy']);
+
+      return creatorId != null &&
+          currentUserId != null &&
+          creatorId == currentUserId;
+    }
     Widget buildDetail() {
       if (task == null) {
         return const Center(
@@ -357,25 +522,48 @@
                           ),
                           title: Text(name),
                           subtitle: Text(email),
-                          trailing: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 5,
-                            ),
-                            decoration: BoxDecoration(
-                              color: permission == 'Editor'
-                                  ? Colors.blue.withValues(alpha: 0.12)
-                                  : Colors.grey.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              permission,
-                              style: TextStyle(
-                                color: permission == 'Editor'
-                                    ? Colors.blue
-                                    : Colors.grey[700],
-                                fontWeight: FontWeight.w600,
+                          trailing: isCreator
+                              ? Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              DropdownButton<String>(
+                                value: permission.toLowerCase(),
+                                items: const [
+                                  DropdownMenuItem(
+                                    value: 'viewer',
+                                    child: Text('Viewer'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'editor',
+                                    child: Text('Editor'),
+                                  ),
+                                ],
+                                onChanged: isUpdatingSharing
+                                    ? null
+                                    : (value) {
+                                  if (value != null) {
+                                    changeSharedPermission(user, value);
+                                  }
+                                },
                               ),
+                              IconButton(
+                                tooltip: 'Thu hồi quyền',
+                                icon: const Icon(
+                                  Icons.person_remove_alt_1,
+                                  color: Colors.red,
+                                ),
+                                onPressed: isUpdatingSharing
+                                    ? null
+                                    : () => revokeSharedAccess(user),
+                              ),
+                            ],
+                          )
+                              : Text(
+                            permission,
+                            style: TextStyle(
+                              color: permission == 'Editor'
+                                  ? Colors.blue
+                                  : Colors.grey,
                             ),
                           ),
                         );
