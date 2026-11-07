@@ -456,6 +456,104 @@ class _TaskListScreenState extends State<TaskListScreen> {
     );
   }
 
+  Widget buildProgressSummary(List<dynamic> tasks) {
+    final total = tasks.length;
+
+    final todo = tasks.where(
+          (task) => task['status'] == 'todo',
+    ).length;
+
+    final inProgress = tasks.where(
+          (task) => task['status'] == 'in_progress',
+    ).length;
+
+    final completed = tasks.where(
+          (task) => task['status'] == 'completed',
+    ).length;
+
+    final percent = total == 0
+        ? 0
+        : (completed / total * 100).round();
+
+    return Card(
+      elevation: 1,
+      margin: const EdgeInsets.only(bottom: 16),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Tiến độ công việc',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: navy,
+                  ),
+                ),
+                Text(
+                  '$percent%',
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                    color: primary,
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: LinearProgressIndicator(
+                value: total == 0 ? 0 : completed / total,
+                minHeight: 9,
+                backgroundColor: const Color(0xFFE5E7EB),
+                color: const Color(0xFF16A34A),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                buildInfoChip(
+                  icon: Icons.assignment_outlined,
+                  text: 'Tổng: $total',
+                  color: navy,
+                ),
+                buildInfoChip(
+                  icon: Icons.circle,
+                  text: 'Chưa làm: $todo',
+                  color: const Color(0xFF64748B),
+                ),
+                buildInfoChip(
+                  icon: Icons.autorenew,
+                  text: 'Đang làm: $inProgress',
+                  color: const Color(0xFF2563EB),
+                ),
+                buildInfoChip(
+                  icon: Icons.check_circle,
+                  text: 'Hoàn thành: $completed',
+                  color: const Color(0xFF16A34A),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget buildTaskCard(dynamic task) {
     final title =
         task['title']?.toString() ?? 'Không có tiêu đề';
@@ -748,21 +846,18 @@ class _TaskListScreenState extends State<TaskListScreen> {
       String groupKey,
       String emptyMessage,
       ) {
+    final allTasks = taskGroups[groupKey] ?? [];
     final tasks = getFilteredTasks(groupKey);
+
+    final hasFilter = searchKeyword.isNotEmpty ||
+        selectedStatus != null ||
+        selectedPriority != null ||
+        selectedAssigneeId != null;
 
     return RefreshIndicator(
       color: primary,
       onRefresh: loadTasks,
-      child: tasks.isEmpty
-          ? buildEmptyState(
-        searchKeyword.isNotEmpty ||
-            selectedStatus != null ||
-            selectedPriority != null ||
-            selectedAssigneeId != null
-            ? 'Không tìm thấy công việc phù hợp với điều kiện tìm kiếm.'
-            : emptyMessage,
-      )
-          : ListView.builder(
+      child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(
           16,
@@ -770,10 +865,40 @@ class _TaskListScreenState extends State<TaskListScreen> {
           16,
           90,
         ),
-        itemCount: tasks.length,
-        itemBuilder: (context, index) {
-          return buildTaskCard(tasks[index]);
-        },
+        children: [
+          // Thống kê tiến độ của nhóm đang xem
+          buildProgressSummary(allTasks),
+
+          if (tasks.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                vertical: 35,
+                horizontal: 15,
+              ),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.inbox_outlined,
+                    size: 55,
+                    color: primary.withValues(alpha: 0.6),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    hasFilter
+                        ? 'Không tìm thấy công việc phù hợp.'
+                        : emptyMessage,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Color(0xFF8791A8),
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            ...tasks.map((task) => buildTaskCard(task)),
+        ],
       ),
     );
   }
