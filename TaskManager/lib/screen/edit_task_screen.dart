@@ -28,7 +28,7 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
   List<dynamic> users = [];
   List<String> selectedAssigneeIds = [];
   List<String> selectedSharedIds = [];
-
+  Map<String, String> sharedPermissionMap = {};
   String? primaryAssigneeId;
 
   bool isLoadingUsers = true;
@@ -55,10 +55,43 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
   @override
   void initState() {
     super.initState();
-
     // Điền thông tin công việc hiện tại.
     final task = widget.task;
+    // Đọc danh sách người được chia sẻ và quyền của từng người.
+    selectedSharedIds = (task['sharedWithIds'] as List? ?? [])
+        .map((user) {
+      if (user is Map) {
+        return user['_id']?.toString() ?? '';
+      }
+      return user.toString();
+    })
+        .where((id) => id.isNotEmpty)
+        .toList();
 
+// Đọc quyền Viewer/Editor đã lưu.
+    sharedPermissionMap = {};
+
+    final permissions = task['sharedPermissions'] as List? ?? [];
+
+    for (final item in permissions) {
+      if (item is Map) {
+        final userId = item['userId'] is Map
+            ? item['userId']['_id']?.toString()
+            : item['userId']?.toString();
+
+        final permission = item['permission']?.toString();
+
+        if (userId != null &&
+            (permission == 'viewer' || permission == 'editor')) {
+          sharedPermissionMap[userId] = permission!;
+        }
+      }
+    }
+
+// Người chưa có quyền được lưu sẽ mặc định là Viewer.
+    for (final id in selectedSharedIds) {
+      sharedPermissionMap.putIfAbsent(id, () => 'viewer');
+    }
     titleController.text = task['title']?.toString() ?? '';
     descriptionController.text =
         task['description']?.toString() ?? '';
@@ -186,8 +219,14 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
         if (!selectedSharedIds.contains(userId)) {
           selectedSharedIds.add(userId);
         }
+
+        // Người mới được chọn mặc định là Viewer.
+        sharedPermissionMap[userId] = 'viewer';
       } else {
         selectedSharedIds.remove(userId);
+
+        // Xóa quyền khi bỏ chọn người đó.
+        sharedPermissionMap.remove(userId);
       }
     });
   }
@@ -250,15 +289,6 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
     });
 
     try {
-      // Đảm bảo người phụ trách chính nằm trong danh sách
-      // người được giao.
-      final assigneeIds = List<String>.from(
-        selectedAssigneeIds,
-      );
-
-      if (!assigneeIds.contains(primaryAssigneeId)) {
-        assigneeIds.add(primaryAssigneeId!);
-      }
 
       await taskService.updateTask(
         getId(widget.task['_id'] ?? widget.task['id'])!,
@@ -269,9 +299,6 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
           'dueDate': dueDate?.toIso8601String(),
           'priority': priority,
           'status': status,
-          'assigneeIds': assigneeIds,
-          'primaryAssigneeId': primaryAssigneeId,
-          'sharedWithIds': selectedSharedIds,
         },
       );
 
@@ -553,19 +580,54 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
 
                 return CheckboxListTile(
                   contentPadding: EdgeInsets.zero,
+
                   title: Text(
                     user['name']?.toString() ?? '',
                   ),
-                  subtitle: Text(
-                    user['email']?.toString() ?? '',
+
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(user['email']?.toString() ?? ''),
+
+                      if (selectedSharedIds.contains(id))
+                        DropdownButton<String>(
+                          value: sharedPermissionMap[id] ?? 'viewer',
+                          isDense: true,
+                          underline: const SizedBox(),
+
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'viewer',
+                              child: Text('Viewer - Chỉ xem'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'editor',
+                              child: Text('Editor - Được chỉnh sửa'),
+                            ),
+                          ],
+
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() {
+                                sharedPermissionMap[id] = value;
+                              });
+                            }
+                          },
+                        ),
+                    ],
                   ),
+
                   secondary: const Icon(
                     Icons.visibility_outlined,
                     color: Colors.blue,
                   ),
+
                   value: selectedSharedIds.contains(id),
+
                   onChanged: (value) {
-                      toggleSharedUser(id, value ?? false);
+                    toggleSharedUser(id, value ?? false);
                   },
                 );
               }),

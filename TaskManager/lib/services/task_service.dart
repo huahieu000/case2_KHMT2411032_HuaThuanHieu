@@ -109,6 +109,7 @@ class TaskService {
     List<String> assigneeIds = const [],
     String? primaryAssigneeId,
     List<String> sharedWithIds = const [],
+    List<Map<String, dynamic>> sharedPermissions = const [],
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/api/tasks'),
@@ -123,6 +124,7 @@ class TaskService {
         'assigneeIds': assigneeIds,
         'primaryAssigneeId': primaryAssigneeId,
         'sharedWithIds': sharedWithIds,
+        'sharedPermissions': sharedPermissions,
       }),
     );
 
