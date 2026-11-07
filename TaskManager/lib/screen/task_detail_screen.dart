@@ -323,7 +323,69 @@
                 ),
               ),
             ),
+            Card(
+              elevation: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'DANH SÁCH NGƯỜI ĐƯỢC CHIA SẺ',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
 
+                    const SizedBox(height: 12),
+
+                    if (task!['sharedWithIds'] is List &&
+                        (task!['sharedWithIds'] as List).isNotEmpty)
+                      ...(task!['sharedWithIds'] as List).map((user) {
+                        final name = getUserName(user);
+                        final email = user is Map
+                            ? user['email']?.toString() ?? ''
+                            : '';
+
+                        final permission = getSharedPermission(user);
+
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: const CircleAvatar(
+                            child: Icon(Icons.person_outline),
+                          ),
+                          title: Text(name),
+                          subtitle: Text(email),
+                          trailing: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: permission == 'Editor'
+                                  ? Colors.blue.withValues(alpha: 0.12)
+                                  : Colors.grey.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              permission,
+                              style: TextStyle(
+                                color: permission == 'Editor'
+                                    ? Colors.blue
+                                    : Colors.grey[700],
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        );
+                      })
+                    else
+                      const Text('Chưa có người được chia sẻ'),
+                  ],
+                ),
+              ),
+            ),
             const SizedBox(height: 24),
 
             SizedBox(
@@ -359,6 +421,28 @@
       return assignees.map((user) {
         return getUserName(user);
       }).toList();
+    }
+    String getSharedPermission(dynamic user) {
+      if (user is! Map) return 'Viewer';
+
+      final userId = user['_id']?.toString();
+
+      final permissions = task?['sharedPermissions'];
+
+      if (permissions is! List) return 'Viewer';
+
+      final permission = permissions.firstWhere(
+            (item) =>
+        item is Map &&
+            item['userId']?.toString() == userId,
+        orElse: () => null,
+      );
+
+      if (permission == null) return 'Viewer';
+
+      return permission['permission'] == 'editor'
+          ? 'Editor'
+          : 'Viewer';
     }
 
     @override
