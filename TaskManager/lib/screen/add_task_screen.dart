@@ -14,6 +14,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
 
   final titleController = TextEditingController();
   final descriptionController = TextEditingController();
+  final searchUserController = TextEditingController();
 
   DateTime? startDate;
   DateTime? dueDate;
@@ -40,6 +41,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
   void dispose() {
     titleController.dispose();
     descriptionController.dispose();
+    searchUserController.dispose();
     super.dispose();
   }
 
@@ -266,47 +268,38 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
               },
             ),
 
-            const SizedBox(height: 20),
-            const Text('Trạng thái'),
-            DropdownButtonFormField<String>(
-              initialValue: status,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-              ),
-              items: const [
-                DropdownMenuItem(
-                  value: 'todo',
-                  child: Text('Chưa thực hiện'),
-                ),
-                DropdownMenuItem(
-                  value: 'in_progress',
-                  child: Text('Đang thực hiện'),
-                ),
-                DropdownMenuItem(
-                  value: 'completed',
-                  child: Text('Hoàn thành'),
-                ),
-              ],
-              onChanged: (value) {
-                if (value != null) setState(() => status = value);
-              },
-            ),
-
-            const SizedBox(height: 24),
-            const Text(
-              'Người được giao',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
             const SizedBox(height: 8),
+
+            if (!isLoadingUsers && userError == null)
+              TextField(
+                controller: searchUserController,
+                decoration: const InputDecoration(
+                  hintText: 'Tìm kiếm bằng tên hoặc email...',
+                  prefixIcon: Icon(Icons.search),
+                  border: OutlineInputBorder(),
+                ),
+                onChanged: (value) {
+                  setState(() {});
+                },
+              ),
+
+            const SizedBox(height: 12),
 
             if (isLoadingUsers)
               const Center(child: CircularProgressIndicator())
             else if (userError != null)
               Text('Không tải được danh sách: $userError')
             else
-              ...users
-                  .where((user) => user['_id'].toString() != currentUserId)
-                  .map((user) {
+              ...users.where((user) {
+                final id = user['_id'].toString();
+                final name = (user['name'] ?? '').toString().toLowerCase();
+                final email = (user['email'] ?? '').toString().toLowerCase();
+
+                final keyword = searchUserController.text.trim().toLowerCase();
+
+                return id != currentUserId &&
+                    (name.contains(keyword) || email.contains(keyword));
+              }).map((user) {
                 final id = user['_id'].toString();
 
                 return CheckboxListTile(
