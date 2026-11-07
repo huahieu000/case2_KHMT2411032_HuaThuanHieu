@@ -9,7 +9,6 @@ class TaskService {
   final FlutterSecureStorage storage =
   const FlutterSecureStorage();
 
-  // Lấy JWT token
   Future<String> _getToken() async {
     final token = await storage.read(key: 'token');
 
@@ -20,7 +19,6 @@ class TaskService {
     return token;
   }
 
-  // Header dùng chung cho các API cần đăng nhập
   Future<Map<String, String>> _headers() async {
     final token = await _getToken();
 
@@ -44,7 +42,6 @@ class TaskService {
     );
   }
 
-  // 1. LẤY DANH SÁCH CÔNG VIỆC
   Future<List<dynamic>> getTasks({
     String? search,
     String? status,
@@ -89,7 +86,6 @@ class TaskService {
     throw Exception('Dữ liệu danh sách công việc không hợp lệ');
   }
 
-  // 2. XEM CHI TIẾT CÔNG VIỆC
   Future<Map<String, dynamic>> getTaskById(
       String id,
       ) async {
@@ -103,7 +99,6 @@ class TaskService {
     return Map<String, dynamic>.from(data);
   }
 
-  // 3. TẠO CÔNG VIỆC
   Future<Map<String, dynamic>> createTask({
     required String title,
     String description = '',
@@ -136,7 +131,6 @@ class TaskService {
     return Map<String, dynamic>.from(data);
   }
 
-  // 4. CẬP NHẬT CÔNG VIỆC
   Future<Map<String, dynamic>> updateTask(
       String id,
       Map<String, dynamic> updateData,
@@ -195,7 +189,6 @@ class TaskService {
       'shared': List<dynamic>.from(data['shared'] ?? []),
     };
   }
-  // LẤY THÔNG TIN TÀI KHOẢN ĐANG ĐĂNG NHẬP
   Future<Map<String, dynamic>> getCurrentUser() async {
     final response = await http.get(
       Uri.parse('$baseUrl/api/users/me'),
