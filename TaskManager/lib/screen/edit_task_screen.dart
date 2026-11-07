@@ -27,6 +27,7 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
 
   List<dynamic> users = [];
   List<String> selectedAssigneeIds = [];
+  List<String> selectedSharedIds = [];
 
   String? primaryAssigneeId;
 
@@ -81,7 +82,16 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
 
     // Lấy người phụ trách chính.
     primaryAssigneeId = getId(task['primaryAssigneeId']);
+    // Lấy danh sách người đang được chia sẻ
+    final sharedUsers = task['sharedWithIds'];
 
+    if (sharedUsers is List) {
+      selectedSharedIds = sharedUsers
+          .map((user) => getId(user))
+          .whereType<String>()
+          .toSet()
+          .toList();
+    }
     if (primaryAssigneeId != null &&
         !selectedAssigneeIds.contains(primaryAssigneeId)) {
       selectedAssigneeIds.add(primaryAssigneeId!);
@@ -159,12 +169,25 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
         selectedAssigneeIds.remove(userId);
 
         // Nếu bỏ chọn người phụ trách chính,
-        // chuyển sang người tạo hoặc người còn lại.
+        // chuyển sang người còn lại.
         if (primaryAssigneeId == userId) {
           primaryAssigneeId = selectedAssigneeIds.isNotEmpty
               ? selectedAssigneeIds.first
               : null;
         }
+      }
+    });
+  }
+
+// Chọn hoặc bỏ chọn người được chia sẻ.
+  void toggleSharedUser(String userId, bool selected) {
+    setState(() {
+      if (selected) {
+        if (!selectedSharedIds.contains(userId)) {
+          selectedSharedIds.add(userId);
+        }
+      } else {
+        selectedSharedIds.remove(userId);
       }
     });
   }
@@ -248,6 +271,7 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
           'status': status,
           'assigneeIds': assigneeIds,
           'primaryAssigneeId': primaryAssigneeId,
+          'sharedWithIds': selectedSharedIds,
         },
       );
 
@@ -490,7 +514,61 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
                 }
               },
             ),
+// NGƯỜI ĐƯỢC CHIA SẺ
+            const SizedBox(height: 24),
 
+            const Text(
+              'Chia sẻ công việc',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            const Text(
+              'Chọn những người có thể xem công việc này',
+              style: TextStyle(
+                color: Colors.grey,
+                fontSize: 13,
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            if (isLoadingUsers)
+              const Center(
+                child: CircularProgressIndicator(),
+              )
+            else if (userError != null)
+              Text('Không tải được danh sách: $userError')
+            else
+              ...users.map((user) {
+                final id = getId(user);
+
+                if (id == null) {
+                  return const SizedBox.shrink();
+                }
+
+                return CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    user['name']?.toString() ?? '',
+                  ),
+                  subtitle: Text(
+                    user['email']?.toString() ?? '',
+                  ),
+                  secondary: const Icon(
+                    Icons.visibility_outlined,
+                    color: Colors.blue,
+                  ),
+                  value: selectedSharedIds.contains(id),
+                  onChanged: (value) {
+                      toggleSharedUser(id, value ?? false);
+                  },
+                );
+              }),
             const SizedBox(height: 28),
 
             // NÚT LƯU
