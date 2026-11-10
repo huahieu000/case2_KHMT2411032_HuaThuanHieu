@@ -4,6 +4,8 @@ const User = require('../models/user.model');
 const { sendEmail } = require('../service/emailService')
 // D3 - Gửi email khi thông tin công việc thay đổi
 const { notifyTaskChanges } = require('../service/taskChangeNotification');
+// D4 - Gửi email khi công việc hoàn thành
+const { notifyTaskCompleted } = require('../service/taskCompletionNotification');
 // Các giá trị hợp lệ
 const VALID_STATUSES = ['todo', 'in_progress', 'completed'];
 const VALID_PRIORITIES = ['low', 'medium', 'high'];
@@ -595,12 +597,18 @@ const oldTask = {
       }
 
       task.status = req.body.status;
-      await task.save();
-      // D3 - Gửi email khi Assignee thay đổi trạng thái
+      await task.save();  
+     // D3/D4 - Thông báo khi Assignee cập nhật trạng thái
 try {
-  await notifyTaskChanges(oldTask, task);
+  if (oldTask.status !== 'completed' && task.status === 'completed') {
+    // D4 - Công việc vừa hoàn thành
+    await notifyTaskCompleted(oldTask, task);
+  } else {
+    // D3 - Các thay đổi trạng thái khác
+    await notifyTaskChanges(oldTask, task);
+  }
 } catch (emailError) {
-  console.error('D3 - Lỗi gửi email thay đổi trạng thái:', emailError);
+  console.error('D3/D4 - Lỗi gửi email:', emailError);
 }
 
       return res.status(200).json({
@@ -881,10 +889,17 @@ Object.assign(task, updateData);
 
 await task.save();
 // D3 - Gửi email khi thông tin quan trọng thay đổi
+// D3/D4 - Thông báo khi Creator hoặc Editor cập nhật công việc
 try {
-  await notifyTaskChanges(oldTask, task);
+  if (oldTask.status !== 'completed' && task.status === 'completed') {
+    // D4 - Công việc vừa chuyển sang hoàn thành
+    await notifyTaskCompleted(oldTask, task);
+  } else {
+    // D3 - Các thay đổi thông thường
+    await notifyTaskChanges(oldTask, task);
+  }
 } catch (emailError) {
-  console.error('D3 - Lỗi gửi email thay đổi:', emailError);
+  console.error('D3/D4 - Lỗi gửi email:', emailError);
 }
 // D2 - Gửi email cho người mới được mời
 if (newSharedUserIds.length > 0) {
@@ -931,7 +946,7 @@ if (newSharedUserIds.length > 0) {
       task
     });
 
-  } catch (error) {
+    } catch (error) {
     console.error('UPDATE TASK ERROR:', error);
 
     return res.status(500).json({
