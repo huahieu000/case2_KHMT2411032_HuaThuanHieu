@@ -1,2 +1,19 @@
 ﻿node_modules/
 .env
+# Node.js
+node_modules/
+**/node_modules/
+.env
+**/.env
+
+# IDE
+.idea/
+**/.idea/
+
+# Flutter generated files
+.dart_tool/
+**/.dart_tool/
+build/
+**/build/
+.flutter-plugins
+.flutter-plugins-dependencies
