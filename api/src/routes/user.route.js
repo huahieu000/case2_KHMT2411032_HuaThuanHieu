@@ -8,6 +8,21 @@ const router = express.Router();
 
 router.use(authMiddleware);
 
+// LẤY DANH SÁCH NGƯỜI DÙNG
+router.get('/', async (req, res) => {
+  try {
+    const users = await User.find()
+      .select('_id name email')
+      .sort({ name: 1 });
+
+    return res.status(200).json(users);
+  } catch (err) {
+    console.error('GET USERS ERROR:', err);
+    return res.status(500).json({
+      message: 'Không thể lấy danh sách người dùng'
+    });
+  }
+});
 // XEM THÔNG TIN CÁ NHÂN
 router.get('/me', async (req, res) => {
   try {
@@ -19,7 +34,12 @@ router.get('/me', async (req, res) => {
       });
     }
 
-    res.json(user);
+    res.json({
+  id: user._id,
+  name: user.name,
+  email: user.email,
+  createdAt: user.createdAt
+});
   } catch (err) {
     res.status(500).json({ message: 'Lỗi server!' });
   }
@@ -29,7 +49,7 @@ router.get('/me', async (req, res) => {
 router.put('/me', async (req, res) => {
   try {
     const { name } = req.body;
-
+    
     if (typeof name !== 'string' || !name.trim()) {
       return res.status(400).json({
         message: 'Họ tên không hợp lệ!'
@@ -49,9 +69,13 @@ router.put('/me', async (req, res) => {
     }
 
     res.json({
-      message: 'Cập nhật thành công!',
-      user
-    });
+  message: 'Cập nhật thành công!',
+  user: {
+    id: user._id,
+    name: user.name,
+    email: user.email
+  }
+});
   } catch (err) {
     res.status(500).json({ message: 'Lỗi server!' });
   }
