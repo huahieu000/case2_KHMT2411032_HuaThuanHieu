@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../services/task_service.dart';
 import 'profile_screen.dart';
 import 'add_task_screen.dart';
+import 'task_detail_screen.dart';
+
 
 class TaskListScreen extends StatefulWidget {
   final VoidCallback onLogout;
@@ -170,112 +172,130 @@ class _TaskListScreenState extends State<TaskListScreen> {
     final priority = task['priority']?.toString();
     final dueDate = formatDate(task['dueDate']);
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: const Color(0xFFE8ECF4),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: navy.withValues(alpha: 0.04),
-            blurRadius: 14,
-            offset: const Offset(0, 5),
-          ),
-        ],
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: primary.withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(13),
-                  ),
-                  child: const Icon(
-                    Icons.assignment_outlined,
-                    color: primary,
-                    size: 23,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: navy,
-                      height: 1.4,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
 
-            const SizedBox(height: 15),
+        // Nhấn vào công việc để xem chi tiết
+        onTap: () async {
+          final taskId = task['_id']?.toString() ??
+              task['id']?.toString();
 
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                buildInfoChip(
-                  icon: Icons.circle,
-                  text: statusText(status),
-                  color: statusColor(status),
-                ),
-                buildInfoChip(
-                  icon: Icons.flag_outlined,
-                  text: 'Ưu tiên ${priorityText(priority)}',
-                  color: priorityColor(priority),
-                ),
-              ],
-            ),
+          if (taskId == null || taskId.isEmpty) {
+            return;
+          }
 
-            if (dueDate.isNotEmpty) ...[
-              const SizedBox(height: 14),
-              const Divider(
-                height: 1,
-                color: Color(0xFFEDF0F5),
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => TaskDetailScreen(
+                taskId: taskId,
               ),
-              const SizedBox(height: 12),
+            ),
+          );
+
+          // Tải lại danh sách nếu công việc đã thay đổi
+          if (result == true && mounted) {
+            await loadTasks();
+          }
+        },
+
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(
-                    Icons.calendar_month_outlined,
-                    size: 17,
-                    color: Color(0xFF8791A8),
-                  ),
-                  const SizedBox(width: 7),
-                  const Text(
-                    'Hạn hoàn thành',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF8791A8),
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: primary.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(13),
+                    ),
+                    child: const Icon(
+                      Icons.assignment_outlined,
+                      color: primary,
+                      size: 23,
                     ),
                   ),
-                  const Spacer(),
-                  Text(
-                    dueDate,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: navy,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: navy,
+                        height: 1.4,
+                      ),
                     ),
                   ),
                 ],
               ),
+
+              const SizedBox(height: 15),
+
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  buildInfoChip(
+                    icon: Icons.circle,
+                    text: statusText(status),
+                    color: statusColor(status),
+                  ),
+                  buildInfoChip(
+                    icon: Icons.flag_outlined,
+                    text: 'Ưu tiên ${priorityText(priority)}',
+                    color: priorityColor(priority),
+                  ),
+                ],
+              ),
+
+              if (dueDate.isNotEmpty) ...[
+                const SizedBox(height: 14),
+                const Divider(
+                  height: 1,
+                  color: Color(0xFFEDF0F5),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.calendar_month_outlined,
+                      size: 17,
+                      color: Color(0xFF8791A8),
+                    ),
+                    const SizedBox(width: 7),
+                    const Text(
+                      'Hạn hoàn thành',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF8791A8),
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      dueDate,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: navy,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -527,7 +547,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
             );
 
             if (result == true && mounted) {
-              loadTasks();
+              await loadTasks();
             }
           },
           icon: const Icon(Icons.add),
