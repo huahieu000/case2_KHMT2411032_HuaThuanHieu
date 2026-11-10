@@ -290,18 +290,39 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
 
     try {
 
+      // Tạo danh sách quyền chia sẻ tương ứng với từng người.
+      final sharedPermissions = selectedSharedIds.map((userId) {
+        return {
+          'userId': userId,
+          'permission': sharedPermissionMap[userId] ?? 'viewer',
+        };
+      }).toList();
+
+// Gửi toàn bộ dữ liệu cập nhật lên Backend.
       await taskService.updateTask(
         getId(widget.task['_id'] ?? widget.task['id'])!,
         {
+          // Thông tin công việc
           'title': titleController.text.trim(),
           'description': descriptionController.text.trim(),
           'startDate': startDate?.toIso8601String(),
           'dueDate': dueDate?.toIso8601String(),
           'priority': priority,
           'status': status,
+
+          // Người được giao
+          'assigneeIds': selectedAssigneeIds,
+
+          // Người phụ trách chính
+          'primaryAssigneeId': primaryAssigneeId,
+
+          // Người được chia sẻ
+          'sharedWithIds': selectedSharedIds,
+
+          // Quyền Viewer / Editor
+          'sharedPermissions': sharedPermissions,
         },
       );
-
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(

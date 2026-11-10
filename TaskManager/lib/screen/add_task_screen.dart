@@ -23,8 +23,11 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
   String status = 'todo';
 
   List<dynamic> users = [];
+
   List<String> selectedAssigneeIds = [];
   String? currentUserId;
+  List<String> selectedSharedWithIds = [];
+  Map<String, String> sharedPermissionsByUser = {};
   String? primaryAssigneeId;
 
   bool isLoadingUsers = true;
@@ -312,7 +315,87 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                   },
                 );
               }),
+            // D2 - Danh sách người được mời chia sẻ công việc
+            const Divider(),
+            const SizedBox(height: 12),
 
+            const Text(
+              'Mời người dùng xem hoặc tham gia công việc',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            if (!isLoadingUsers && userError == null)
+              ...users.where((user) {
+                return user['_id'].toString() != currentUserId;
+              }).map((user) {
+                final id = user['_id'].toString();
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CheckboxListTile(
+                      title: Text(user['name'].toString()),
+                      subtitle: Text(user['email'].toString()),
+                      value: selectedSharedWithIds.contains(id),
+                      onChanged: (value) {
+                        setState(() {
+                          if (value == true) {
+                            if (!selectedSharedWithIds.contains(id)) {
+                              selectedSharedWithIds.add(id);
+                            }
+
+                            sharedPermissionsByUser.putIfAbsent(
+                              id,
+                                  () => 'viewer',
+                            );
+                          } else {
+                            selectedSharedWithIds.remove(id);
+                            sharedPermissionsByUser.remove(id);
+                          }
+                        });
+                      },
+                    ),
+
+                    if (selectedSharedWithIds.contains(id))
+                      Padding(
+                        padding: const EdgeInsets.only(
+                          left: 16,
+                          right: 16,
+                          bottom: 12,
+                        ),
+                        child: DropdownButtonFormField<String>(
+                          initialValue: sharedPermissionsByUser[id] ?? 'viewer',
+                          decoration: const InputDecoration(
+                            labelText: 'Quyền chia sẻ',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'viewer',
+                              child: Text('Viewer - Chỉ xem'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'editor',
+                              child: Text('Editor - Chỉnh sửa'),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() {
+                                sharedPermissionsByUser[id] = value;
+                              });
+                            }
+                          },
+                        ),
+                      ),
+                  ],
+                );
+              }),
             const SizedBox(height: 20),
             const Text(
               'Người phụ trách chính',
