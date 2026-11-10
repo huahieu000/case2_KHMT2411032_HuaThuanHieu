@@ -23,7 +23,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
   TextEditingController();
 
   String searchKeyword = '';
-
+  String selectedSort = 'createdAt';
   String? selectedStatus;
   String? selectedPriority;
   String? selectedAssigneeId;
@@ -342,7 +342,64 @@ class _TaskListScreenState extends State<TaskListScreen> {
               ),
             ],
           ),
+          const SizedBox(height: 12),
 
+          Row(
+            children: [
+              const Icon(
+                Icons.sort,
+                color: navy,
+              ),
+              const SizedBox(width: 8),
+
+              const Text(
+                'Sắp xếp:',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+
+              const SizedBox(width: 12),
+
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  initialValue: selectedSort,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'dueDate',
+                      child: Text('Hạn hoàn thành'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'priority',
+                      child: Text('Mức độ ưu tiên'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'createdAt',
+                      child: Text('Thời gian tạo'),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    if (value == null) return;
+
+                    setState(() {
+                      selectedSort = value;
+                    });
+                  },
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 5),
 
           Align(
@@ -593,10 +650,64 @@ class _TaskListScreenState extends State<TaskListScreen> {
     );
   }
 
+// SẮP XẾP DANH SÁCH CÔNG VIỆC
+  List<dynamic> sortTasks(List<dynamic> tasks) {
+    final sortedTasks = List<dynamic>.from(tasks);
+
+    sortedTasks.sort((a, b) {
+      switch (selectedSort) {
+        case 'dueDate':
+          final dateA = DateTime.tryParse(
+            a['dueDate']?.toString() ?? '',
+          );
+
+          final dateB = DateTime.tryParse(
+            b['dueDate']?.toString() ?? '',
+          );
+
+          if (dateA == null) return 1;
+          if (dateB == null) return -1;
+
+          return dateA.compareTo(dateB);
+
+        case 'priority':
+          const priorityOrder = {
+            'high': 1,
+            'medium': 2,
+            'low': 3,
+          };
+
+          final priorityA =
+              priorityOrder[a['priority']] ?? 4;
+
+          final priorityB =
+              priorityOrder[b['priority']] ?? 4;
+
+          return priorityA.compareTo(priorityB);
+
+        case 'createdAt':
+        default:
+          final dateA = DateTime.tryParse(
+            a['createdAt']?.toString() ?? '',
+          );
+
+          final dateB = DateTime.tryParse(
+            b['createdAt']?.toString() ?? '',
+          );
+
+          if (dateA == null) return 1;
+          if (dateB == null) return -1;
+
+          return dateB.compareTo(dateA);
+      }
+    });
+
+    return sortedTasks;
+  }
+
   List<dynamic> getFilteredTasks(String groupKey) {
     final tasks = taskGroups[groupKey] ?? [];
-
-    return tasks.where((task) {
+    final filteredTasks = tasks.where((task) {
       final title = (task['title'] ?? '')
           .toString()
           .toLowerCase();
@@ -629,6 +740,8 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
       return true;
     }).toList();
+
+    return sortTasks(filteredTasks);
   }
 
   Widget buildTaskList(
