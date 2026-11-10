@@ -106,6 +106,7 @@ class TaskService {
     String? dueDate,
     String priority = 'medium',
     String status = 'todo',
+    int reminderHoursBefore = 24,
     List<String> assigneeIds = const [],
     String? primaryAssigneeId,
     List<String> sharedWithIds = const [],
@@ -121,6 +122,7 @@ class TaskService {
         'dueDate': dueDate,
         'priority': priority,
         'status': status,
+        'reminderHoursBefore': reminderHoursBefore, // D5
         'assigneeIds': assigneeIds,
         'primaryAssigneeId': primaryAssigneeId,
         'sharedWithIds': sharedWithIds,
