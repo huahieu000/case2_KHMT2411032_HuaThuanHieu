@@ -208,6 +208,7 @@ exports.createTask = async (req, res) => {
       dueDate,
       priority = 'medium',
       status = 'todo',
+      reminderHoursBefore = 24,
       assigneeIds = [],
       primaryAssigneeId = null,
       sharedWithIds = [],
@@ -240,7 +241,12 @@ exports.createTask = async (req, res) => {
         message: 'Mức ưu tiên không hợp lệ'
       });
     }
-
+    // D5 - Kiểm tra thời gian nhắc khi tạo công việc
+if (![1, 6, 12, 24, 48].includes(reminderHoursBefore)) {
+  return res.status(400).json({
+    message: 'Thời gian nhắc phải là 1, 6, 12, 24 hoặc 48 giờ'
+  });
+}
     // 4. Kiểm tra ID người dùng
     const allUserIds = [
       ...assigneeIds,
@@ -322,7 +328,7 @@ exports.createTask = async (req, res) => {
       }
 
       permissionUserIds.add(userId);
-    }
+    } 
 
     // 8. Tạo công việc
     const task = await Task.create({
@@ -336,6 +342,7 @@ exports.createTask = async (req, res) => {
       dueDate: due,
       priority,
       status,
+      reminderHoursBefore,
       sharedPermissions
     });
 
@@ -625,7 +632,8 @@ try {
         'startDate',
         'dueDate',
         'priority',
-        'status'
+        'status',
+        'reminderHoursBefore'
       ];
 
       const fields = Object.keys(req.body);
@@ -651,6 +659,7 @@ try {
       'dueDate',
       'priority',
       'status',
+      'reminderHoursBefore', // D5
       'assigneeIds',
       'primaryAssigneeId',
       'sharedWithIds',
@@ -666,7 +675,16 @@ try {
     }
 
     const updateData = { ...req.body };
+    // D5 - Kiểm tra thời gian nhắc trước hạn
+if (updateData.reminderHoursBefore !== undefined) {
+  const validHours = [1, 6, 12, 24, 48];
 
+  if (!validHours.includes(updateData.reminderHoursBefore)) {
+    return res.status(400).json({
+      message: 'Thời gian nhắc phải là 1, 6, 12, 24 hoặc 48 giờ'
+    });
+  }
+}
     // 5. Kiểm tra tên công việc
     if (updateData.title !== undefined) {
       if (

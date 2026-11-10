@@ -21,6 +21,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
 
   String priority = 'medium';
   String status = 'todo';
+  int reminderHoursBefore = 24;
 
   List<dynamic> users = [];
 
@@ -160,6 +161,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
         dueDate: dueDate?.toIso8601String(),
         priority: priority,
         status: status,
+        reminderHoursBefore: reminderHoursBefore,
         assigneeIds: assigneeIds,
         primaryAssigneeId: primaryAssigneeId,
       );
@@ -254,6 +256,32 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
               onTap: () => selectDate(false),
             ),
 
+            // D5 - Chọn thời gian nhắc trước hạn
+            const SizedBox(height: 16),
+            const Text('Nhắc trước hạn hoàn thành'),
+            const SizedBox(height: 8),
+
+            DropdownButtonFormField<int>(
+              initialValue: reminderHoursBefore,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.notifications_active_outlined),
+              ),
+              items: const [
+                DropdownMenuItem(value: 1, child: Text('Trước 1 giờ')),
+                DropdownMenuItem(value: 6, child: Text('Trước 6 giờ')),
+                DropdownMenuItem(value: 12, child: Text('Trước 12 giờ')),
+                DropdownMenuItem(value: 24, child: Text('Trước 24 giờ')),
+                DropdownMenuItem(value: 48, child: Text('Trước 48 giờ')),
+              ],
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() {
+                    reminderHoursBefore = value;
+                  });
+                }
+              },
+            ),
             const SizedBox(height: 16),
             const Text('Mức độ ưu tiên'),
             DropdownButtonFormField<String>(
