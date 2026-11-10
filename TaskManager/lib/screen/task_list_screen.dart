@@ -5,7 +5,6 @@ import 'profile_screen.dart';
 import 'add_task_screen.dart';
 import 'task_detail_screen.dart';
 
-
 class TaskListScreen extends StatefulWidget {
   final VoidCallback onLogout;
 
@@ -20,6 +19,16 @@ class TaskListScreen extends StatefulWidget {
 
 class _TaskListScreenState extends State<TaskListScreen> {
   final TaskService taskService = TaskService();
+  final TextEditingController searchController =
+  TextEditingController();
+
+  String searchKeyword = '';
+
+  String? selectedStatus;
+  String? selectedPriority;
+  String? selectedAssigneeId;
+
+  List<dynamic> users = [];
 
   static const Color navy = Color(0xFF202B50);
   static const Color primary = Color(0xFF536DFE);
@@ -41,7 +50,15 @@ class _TaskListScreenState extends State<TaskListScreen> {
     loadTasks();
   }
 
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
+  }
+
   Future<void> loadTasks() async {
+    if (!mounted) return;
+
     setState(() {
       isLoading = true;
       error = null;
@@ -50,10 +67,19 @@ class _TaskListScreenState extends State<TaskListScreen> {
     try {
       final result = await taskService.getTaskGroups();
 
+      List<dynamic> loadedUsers = [];
+
+      try {
+        loadedUsers = await taskService.getUsers();
+      } catch (e) {
+        debugPrint('Không thể tải danh sách người dùng: $e');
+      }
+
       if (!mounted) return;
 
       setState(() {
         taskGroups = result;
+        users = loadedUsers;
       });
     } catch (e) {
       if (!mounted) return;
@@ -134,6 +160,213 @@ class _TaskListScreenState extends State<TaskListScreen> {
         '${parsedDate.year}';
   }
 
+  String getUserId(dynamic user) {
+    if (user == null) return '';
+
+    if (user is Map) {
+      return (user['_id'] ?? user['id'] ?? '').toString();
+    }
+
+    return user.toString();
+  }
+
+  Widget buildSearchAndFilters() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+      color: background,
+      child: Column(
+        children: [
+          TextField(
+            controller: searchController,
+            onChanged: (value) {
+              setState(() {
+                searchKeyword = value;
+              });
+            },
+            decoration: InputDecoration(
+              hintText: 'Tìm kiếm công việc...',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: searchKeyword.isNotEmpty
+                  ? IconButton(
+                icon: const Icon(Icons.clear),
+                onPressed: () {
+                  searchController.clear();
+
+                  setState(() {
+                    searchKeyword = '';
+                  });
+                },
+              )
+                  : null,
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: const EdgeInsets.symmetric(
+                vertical: 12,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              SizedBox(
+                width: 145,
+                child: DropdownButtonFormField<String>(
+                  initialValue: selectedStatus ?? '',
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Trạng thái',
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: '',
+                      child: Text('Tất cả'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'todo',
+                      child: Text('Chưa thực hiện'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'in_progress',
+                      child: Text('Đang thực hiện'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'completed',
+                      child: Text('Hoàn thành'),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      selectedStatus =
+                      value == '' ? null : value;
+                    });
+                  },
+                ),
+              ),
+
+              SizedBox(
+                width: 145,
+                child: DropdownButtonFormField<String>(
+                  initialValue: selectedPriority ?? '',
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Mức ưu tiên',
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: '',
+                      child: Text('Tất cả'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'low',
+                      child: Text('Thấp'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'medium',
+                      child: Text('Trung bình'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'high',
+                      child: Text('Cao'),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      selectedPriority =
+                      value == '' ? null : value;
+                    });
+                  },
+                ),
+              ),
+
+              SizedBox(
+                width: 145,
+                child: DropdownButtonFormField<String>(
+                  initialValue: selectedAssigneeId ?? '',
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Người phụ trách',
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                    border: OutlineInputBorder(),
+                  ),
+                  items: [
+                    const DropdownMenuItem(
+                      value: '',
+                      child: Text('Tất cả'),
+                    ),
+                    ...users.map((user) {
+                      return DropdownMenuItem<String>(
+                        value: getUserId(user),
+                        child: Text(
+                          user['name']?.toString() ??
+                              user['email']?.toString() ??
+                              'Người dùng',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      );
+                    }),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      selectedAssigneeId =
+                      value == '' ? null : value;
+                    });
+                  },
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 5),
+
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: () {
+                searchController.clear();
+
+                setState(() {
+                  searchKeyword = '';
+                  selectedStatus = null;
+                  selectedPriority = null;
+                  selectedAssigneeId = null;
+                });
+              },
+              icon: const Icon(Icons.refresh, size: 17),
+              label: const Text('Xóa bộ lọc'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget buildInfoChip({
     required IconData icon,
     required String text,
@@ -167,7 +400,8 @@ class _TaskListScreenState extends State<TaskListScreen> {
   }
 
   Widget buildTaskCard(dynamic task) {
-    final title = task['title']?.toString() ?? 'Không có tiêu đề';
+    final title =
+        task['title']?.toString() ?? 'Không có tiêu đề';
     final status = task['status']?.toString();
     final priority = task['priority']?.toString();
     final dueDate = formatDate(task['dueDate']);
@@ -180,8 +414,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-
-        // Nhấn vào công việc để xem chi tiết
         onTap: () async {
           final taskId = task['_id']?.toString() ??
               task['id']?.toString();
@@ -199,12 +431,10 @@ class _TaskListScreenState extends State<TaskListScreen> {
             ),
           );
 
-          // Tải lại danh sách nếu công việc đã thay đổi
           if (result == true && mounted) {
             await loadTasks();
           }
         },
-
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -226,7 +456,9 @@ class _TaskListScreenState extends State<TaskListScreen> {
                       size: 23,
                     ),
                   ),
+
                   const SizedBox(width: 12),
+
                   Expanded(
                     child: Text(
                       title,
@@ -267,6 +499,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
                   color: Color(0xFFEDF0F5),
                 ),
                 const SizedBox(height: 12),
+
                 Row(
                   children: [
                     const Icon(
@@ -275,6 +508,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
                       color: Color(0xFF8791A8),
                     ),
                     const SizedBox(width: 7),
+
                     const Text(
                       'Hạn hoàn thành',
                       style: TextStyle(
@@ -282,7 +516,9 @@ class _TaskListScreenState extends State<TaskListScreen> {
                         color: Color(0xFF8791A8),
                       ),
                     ),
+
                     const Spacer(),
+
                     Text(
                       dueDate,
                       style: const TextStyle(
@@ -306,6 +542,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
       physics: const AlwaysScrollableScrollPhysics(),
       children: [
         const SizedBox(height: 110),
+
         Center(
           child: Column(
             children: [
@@ -322,7 +559,9 @@ class _TaskListScreenState extends State<TaskListScreen> {
                   color: primary,
                 ),
               ),
+
               const SizedBox(height: 18),
+
               const Text(
                 'Chưa có công việc',
                 style: TextStyle(
@@ -331,9 +570,13 @@ class _TaskListScreenState extends State<TaskListScreen> {
                   color: navy,
                 ),
               ),
+
               const SizedBox(height: 7),
+
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 35),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 35,
+                ),
                 child: Text(
                   message,
                   textAlign: TextAlign.center,
@@ -350,17 +593,70 @@ class _TaskListScreenState extends State<TaskListScreen> {
     );
   }
 
-  Widget buildTaskList(String groupKey, String emptyMessage) {
+  List<dynamic> getFilteredTasks(String groupKey) {
     final tasks = taskGroups[groupKey] ?? [];
+
+    return tasks.where((task) {
+      final title = (task['title'] ?? '')
+          .toString()
+          .toLowerCase();
+
+      final keyword = searchKeyword.trim().toLowerCase();
+
+      if (keyword.isNotEmpty && !title.contains(keyword)) {
+        return false;
+      }
+
+      if (selectedStatus != null &&
+          task['status'] != selectedStatus) {
+        return false;
+      }
+
+      if (selectedPriority != null &&
+          task['priority'] != selectedPriority) {
+        return false;
+      }
+
+      if (selectedAssigneeId != null) {
+        final primaryId = getUserId(
+          task['primaryAssigneeId'],
+        );
+
+        if (primaryId != selectedAssigneeId) {
+          return false;
+        }
+      }
+
+      return true;
+    }).toList();
+  }
+
+  Widget buildTaskList(
+      String groupKey,
+      String emptyMessage,
+      ) {
+    final tasks = getFilteredTasks(groupKey);
 
     return RefreshIndicator(
       color: primary,
       onRefresh: loadTasks,
       child: tasks.isEmpty
-          ? buildEmptyState(emptyMessage)
+          ? buildEmptyState(
+        searchKeyword.isNotEmpty ||
+            selectedStatus != null ||
+            selectedPriority != null ||
+            selectedAssigneeId != null
+            ? 'Không tìm thấy công việc phù hợp với điều kiện tìm kiếm.'
+            : emptyMessage,
+      )
           : ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
+        padding: const EdgeInsets.fromLTRB(
+          16,
+          16,
+          16,
+          90,
+        ),
         itemCount: tasks.length,
         itemBuilder: (context, index) {
           return buildTaskCard(tasks[index]);
@@ -381,7 +677,9 @@ class _TaskListScreenState extends State<TaskListScreen> {
               size: 55,
               color: Colors.redAccent,
             ),
+
             const SizedBox(height: 15),
+
             const Text(
               'Không thể tải công việc',
               style: TextStyle(
@@ -390,13 +688,17 @@ class _TaskListScreenState extends State<TaskListScreen> {
                 color: navy,
               ),
             ),
+
             const SizedBox(height: 8),
+
             Text(
               error ?? '',
               textAlign: TextAlign.center,
               style: const TextStyle(color: Colors.grey),
             ),
+
             const SizedBox(height: 18),
+
             ElevatedButton.icon(
               onPressed: loadTasks,
               icon: const Icon(Icons.refresh),
@@ -428,11 +730,13 @@ class _TaskListScreenState extends State<TaskListScreen> {
       length: 4,
       child: Scaffold(
         backgroundColor: background,
+
         appBar: AppBar(
           backgroundColor: navy,
           foregroundColor: Colors.white,
           elevation: 0,
           titleSpacing: 20,
+
           title: const Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -455,12 +759,14 @@ class _TaskListScreenState extends State<TaskListScreen> {
               ),
             ],
           ),
+
           actions: [
             IconButton(
               tooltip: 'Tải lại',
               onPressed: isLoading ? null : loadTasks,
               icon: const Icon(Icons.refresh_rounded),
             ),
+
             IconButton(
               tooltip: 'Tài khoản',
               icon: const Icon(Icons.account_circle_outlined),
@@ -475,8 +781,10 @@ class _TaskListScreenState extends State<TaskListScreen> {
                 );
               },
             ),
+
             const SizedBox(width: 8),
           ],
+
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(58),
             child: Container(
@@ -485,7 +793,9 @@ class _TaskListScreenState extends State<TaskListScreen> {
               child: TabBar(
                 isScrollable: true,
                 tabAlignment: TabAlignment.start,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                ),
                 labelColor: Colors.white,
                 unselectedLabelColor: const Color(0xFFB8C4E5),
                 indicatorColor: const Color(0xFF8EA1FF),
@@ -506,6 +816,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
             ),
           ),
         ),
+
         body: isLoading
             ? const Center(
           child: CircularProgressIndicator(
@@ -514,30 +825,40 @@ class _TaskListScreenState extends State<TaskListScreen> {
         )
             : error != null
             ? buildErrorState()
-            : TabBarView(
+            : Column(
           children: [
-            buildTaskList(
-              'created',
-              'Bạn chưa tạo công việc nào.',
-            ),
-            buildTaskList(
-              'assigned',
-              'Bạn chưa được giao công việc nào.',
-            ),
-            buildTaskList(
-              'responsible',
-              'Bạn chưa phụ trách công việc nào.',
-            ),
-            buildTaskList(
-              'shared',
-              'Chưa có công việc nào được chia sẻ với bạn.',
+            buildSearchAndFilters(),
+
+            Expanded(
+              child: TabBarView(
+                children: [
+                  buildTaskList(
+                    'created',
+                    'Bạn chưa tạo công việc nào.',
+                  ),
+                  buildTaskList(
+                    'assigned',
+                    'Bạn chưa được giao công việc nào.',
+                  ),
+                  buildTaskList(
+                    'responsible',
+                    'Bạn chưa phụ trách công việc nào.',
+                  ),
+                  buildTaskList(
+                    'shared',
+                    'Chưa có công việc nào được chia sẻ với bạn.',
+                  ),
+                ],
+              ),
             ),
           ],
         ),
+
         floatingActionButton: FloatingActionButton.extended(
           backgroundColor: primary,
           foregroundColor: Colors.white,
           elevation: 5,
+
           onPressed: () async {
             final result = await Navigator.push(
               context,
@@ -550,10 +871,14 @@ class _TaskListScreenState extends State<TaskListScreen> {
               await loadTasks();
             }
           },
+
           icon: const Icon(Icons.add),
+
           label: const Text(
             'Thêm công việc',
-            style: TextStyle(fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
       ),
