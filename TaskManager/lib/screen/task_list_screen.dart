@@ -4,6 +4,7 @@ import '../services/task_service.dart';
 import 'profile_screen.dart';
 import 'add_task_screen.dart';
 import 'task_detail_screen.dart';
+import 'notification_screen.dart';
 
 class TaskListScreen extends StatefulWidget {
   final VoidCallback onLogout;
@@ -999,6 +1000,19 @@ class _TaskListScreenState extends State<TaskListScreen> {
           ),
 
           actions: [
+            // D7 - Nút mở thông báo
+            IconButton(
+              tooltip: 'Thông báo',
+              icon: const Icon(Icons.notifications_outlined),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const NotificationScreen(),
+                  ),
+                );
+              },
+            ),
             IconButton(
               tooltip: 'Tải lại',
               onPressed: isLoading ? null : loadTasks,
