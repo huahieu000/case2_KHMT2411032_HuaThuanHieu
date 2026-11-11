@@ -178,6 +178,22 @@ class TaskService {
 
     throw Exception('Dữ liệu danh sách người dùng không hợp lệ');
   }
+  // E1 - Thống kê số lượng công việc theo trạng thái
+  Future<Map<String, dynamic>> getTaskStatistics() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/tasks/statistics'),
+      headers: await _headers(),
+    );
+
+    final data = _handleResponse(response);
+
+    if (data is Map<String, dynamic>) {
+      return data;
+    }
+
+    throw Exception('Dữ liệu thống kê công việc không hợp lệ');
+  }
+
   Future<Map<String, List<dynamic>>> getTaskGroups() async {
     final response = await http.get(
       Uri.parse('$baseUrl/api/tasks/groups'),

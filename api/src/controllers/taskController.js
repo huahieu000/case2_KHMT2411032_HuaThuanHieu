@@ -1067,3 +1067,32 @@ exports.getTaskGroups = async (req, res) => {
   }
 };
 
+// E1 - Thống kê tổng số công việc theo trạng thái
+exports.getTaskStatistics = async (req, res) => {
+  try {
+    // Chỉ thống kê các công việc người dùng có quyền xem
+    const filter = visibleTasks(req.userId);
+
+    const tasks = await Task.find(filter)
+      .select('status')
+      .lean();
+
+    const byStatus = {};
+
+    for (const task of tasks) {
+      const status = task.status;
+      byStatus[status] = (byStatus[status] || 0) + 1;
+    }
+
+    return res.status(200).json({
+      total: tasks.length,
+      byStatus
+    });
+  } catch (error) {
+    console.error('E1 - STATISTICS ERROR:', error);
+
+    return res.status(500).json({
+      message: 'Không thể thống kê công việc'
+    });
+  }
+};

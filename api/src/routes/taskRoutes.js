@@ -7,6 +7,8 @@ const authMiddleware = require('../middleware/auth.middleware');
 router.use(authMiddleware);
 
 router.get('/groups', taskController.getTaskGroups);
+// E1 - Thống kê số lượng công việc theo trạng thái
+router.get('/statistics', taskController.getTaskStatistics);
 router.get('/', taskController.getTasks);
 router.get('/:id', taskController.getTaskById);
 router.post('/', taskController.createTask);
