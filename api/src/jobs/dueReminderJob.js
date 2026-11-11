@@ -1,5 +1,7 @@
 const Task = require('../models/Task');
 const User = require('../models/user.model');
+// D6 - Model lưu lịch sử gửi email
+const EmailLog = require('../models/EmailLog');
 const { sendEmail } = require('../service/emailService');
 
 const checkDueReminders = async () => {
@@ -77,12 +79,30 @@ if (now < reminderTime) {
   task.dueReminderSentAt = new Date();
   task.dueReminderFor = task.dueDate;
   task.dueReminderHoursBefore = reminderHours;
-
   await task.save();
+        // D6 - Lưu lịch sử gửi email thành công
+  await EmailLog.create({
+  taskId: task._id,
+  recipientEmail: emails.join(','),
+  subject: 'TaskManager - Công việc sắp đến hạn',
+  status: 'success',
+  sentAt: new Date()
+});
+    console.log('D5 - Đã gửi email nhắc hạn:', task.title);
+} else {
+  // D6 - Lưu lịch sử gửi email thất bại
+  await EmailLog.create({
+    taskId: task._id,
+    recipientEmail: emails.join(','),
+    subject: 'TaskManager - Công việc sắp đến hạn',
+    status: 'failed',
+    errorMessage: result.error?.message || result.error || 'Gửi email thất bại',
+    sentAt: new Date()
+  });
 
-  console.log('D5 - Đã gửi email nhắc hạn:', task.title);
+  console.error('D6 - Gửi email thất bại:', task.title);
 }
-    }
+  }
   } catch (error) {
     console.error('D3 - Lỗi kiểm tra hạn:', error);
   }
