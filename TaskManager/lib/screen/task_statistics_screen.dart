@@ -20,6 +20,9 @@ class _TaskStatisticsScreenState extends State<TaskStatisticsScreen> {
   // E2 - Thống kê công việc được giao và đang phụ trách
   int assignedCount = 0;
   int responsibleCount = 0;
+// E3 - Danh sách công việc sắp đến hạn và quá hạn
+  List<dynamic> upcomingTasks = [];
+  List<dynamic> overdueTasks = [];
 
   @override
   void initState() {
@@ -34,22 +37,70 @@ class _TaskStatisticsScreenState extends State<TaskStatisticsScreen> {
     });
 
     try {
+      // E1 - Thống kê công việc theo trạng thái
       final data = await _taskService.getTaskStatistics();
-      // E2 - Lấy danh sách công việc được giao và đang phụ trách
-      final groups = await _taskService.getTaskGroups();
 
+      // E2 - Thống kê theo vai trò
+      final groups = await _taskService.getTaskGroups();
       final assigned = groups['assigned']?.length ?? 0;
       final responsible = groups['responsible']?.length ?? 0;
+
+      // E3 - Lấy công việc để phân loại theo hạn
+      final tasks = await _taskService.getTasks();
+
+      final now = DateTime.now();
+      final next24Hours = now.add(const Duration(hours: 24));
+
+      final upcoming = <dynamic>[];
+      final overdue = <dynamic>[];
+
+      for (final task in tasks) {
+        if (task is! Map) continue;
+        if (task['status'] == 'completed') continue;
+
+        final dueDateString = task['dueDate']?.toString();
+        if (dueDateString == null || dueDateString.isEmpty) {
+          continue;
+        }
+
+        final dueDate = DateTime.tryParse(dueDateString);
+        if (dueDate == null) continue;
+
+        if (dueDate.isBefore(now)) {
+          overdue.add(task);
+        } else if (!dueDate.isAfter(next24Hours)) {
+          upcoming.add(task);
+        }
+      }
+
+      // Sắp xếp theo hạn hoàn thành
+      upcoming.sort(
+            (a, b) => DateTime.parse(a['dueDate'].toString())
+            .compareTo(DateTime.parse(b['dueDate'].toString())),
+      );
+
+      overdue.sort(
+            (a, b) => DateTime.parse(a['dueDate'].toString())
+            .compareTo(DateTime.parse(b['dueDate'].toString())),
+      );
 
       if (!mounted) return;
 
       setState(() {
+        // E1
         total = (data['total'] as num?)?.toInt() ?? 0;
         byStatus = Map<String, dynamic>.from(
           data['byStatus'] ?? {},
         );
+
+        // E2
         assignedCount = assigned;
         responsibleCount = responsible;
+
+        // E3
+        upcomingTasks = upcoming;
+        overdueTasks = overdue;
+
         isLoading = false;
       });
     } catch (e) {
@@ -156,6 +207,74 @@ class _TaskStatisticsScreenState extends State<TaskStatisticsScreen> {
               Icons.supervisor_account_outlined,
               Colors.blue,
             ),
+
+            // E3 - Hiển thị công việc sắp đến hạn và quá hạn
+            const SizedBox(height: 20),
+
+            const Text(
+              'Công việc theo hạn hoàn thành',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            Text(
+              'Sắp đến hạn trong 24 giờ (${upcomingTasks.length})',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.orange,
+              ),
+            ),
+
+            if (upcomingTasks.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Text('Không có công việc sắp đến hạn'),
+              ),
+
+            for (final task in upcomingTasks)
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.access_time, color: Colors.orange),
+                  title: Text(task['title']?.toString() ?? 'Không có tên'),
+                  subtitle: Text(
+                    'Hạn: ${DateTime.parse(task['dueDate'].toString()).toLocal().toString().substring(0, 16)}',
+                  ),
+                ),
+              ),
+
+            const SizedBox(height: 20),
+
+            Text(
+              'Đã quá hạn (${overdueTasks.length})',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.red,
+              ),
+            ),
+
+            if (overdueTasks.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Text('Không có công việc quá hạn'),
+              ),
+
+            for (final task in overdueTasks)
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.warning_amber, color: Colors.red),
+                  title: Text(task['title']?.toString() ?? 'Không có tên'),
+                  subtitle: Text(
+                    'Hạn: ${DateTime.parse(task['dueDate'].toString()).toLocal().toString().substring(0, 16)}',
+                  ),
+                ),
+              ),
+
           ],
         ),
       ),
