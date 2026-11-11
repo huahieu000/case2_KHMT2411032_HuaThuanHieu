@@ -17,6 +17,9 @@ class _TaskStatisticsScreenState extends State<TaskStatisticsScreen> {
   String? errorMessage;
   int total = 0;
   Map<String, dynamic> byStatus = {};
+  // E2 - Thống kê công việc được giao và đang phụ trách
+  int assignedCount = 0;
+  int responsibleCount = 0;
 
   @override
   void initState() {
@@ -32,6 +35,11 @@ class _TaskStatisticsScreenState extends State<TaskStatisticsScreen> {
 
     try {
       final data = await _taskService.getTaskStatistics();
+      // E2 - Lấy danh sách công việc được giao và đang phụ trách
+      final groups = await _taskService.getTaskGroups();
+
+      final assigned = groups['assigned']?.length ?? 0;
+      final responsible = groups['responsible']?.length ?? 0;
 
       if (!mounted) return;
 
@@ -40,6 +48,8 @@ class _TaskStatisticsScreenState extends State<TaskStatisticsScreen> {
         byStatus = Map<String, dynamic>.from(
           data['byStatus'] ?? {},
         );
+        assignedCount = assigned;
+        responsibleCount = responsible;
         isLoading = false;
       });
     } catch (e) {
@@ -120,6 +130,32 @@ class _TaskStatisticsScreenState extends State<TaskStatisticsScreen> {
                 item.$3,
                 item.$4,
               ),
+            // E2 - Thống kê công việc được giao và đang phụ trách
+            const SizedBox(height: 16),
+
+            const Text(
+              'Thống kê công việc theo vai trò',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            buildStatCard(
+              'Công việc được giao',
+              assignedCount,
+              Icons.assignment_ind_outlined,
+              Colors.orange,
+            ),
+
+            buildStatCard(
+              'Công việc đang phụ trách',
+              responsibleCount,
+              Icons.supervisor_account_outlined,
+              Colors.blue,
+            ),
           ],
         ),
       ),
