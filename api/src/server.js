@@ -6,6 +6,7 @@ require('dotenv').config();
 const authRoutes = require('./routes/auth.route');
 const userRoutes = require('./routes/user.route');
 const taskRoutes = require('./routes/taskRoutes');
+const notificationRoutes = require('./routes/notificationRoute')
 // D3 - Chức năng gửi email nhắc hạn hoàn thành
 const { checkDueReminders } = require('./jobs/dueReminderJob');
 
@@ -22,7 +23,7 @@ if (!process.env.MONGODB_URI || !process.env.JWT_SECRET) {
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/tasks', taskRoutes);
-
+app.use('/api/notifications', notificationRoutes);
 // Kết nối MongoDB trước khi chạy server
 async function startServer() {
   try {

@@ -2,6 +2,7 @@ const Task = require('../models/Task');
 const User = require('../models/user.model');
 // D6 - Model lưu lịch sử gửi email
 const EmailLog = require('../models/EmailLog');
+const Notification = require('../models/Notification');
 const { sendEmail } = require('../service/emailService');
 
 const checkDueReminders = async () => {
@@ -21,6 +22,8 @@ const checkDueReminders = async () => {
     for (const task of tasks) {
       // Tránh gửi lại cho cùng một hạn hoàn thành
       // D5 - Tránh gửi email trùng cho cùng hạn và cùng cấu hình
+      // D5 - Thời gian nhắc riêng của từng công việc
+    const reminderHours = task.reminderHoursBefore ?? 24;
 if (
   task.dueReminderFor &&
   new Date(task.dueReminderFor).getTime() ===
@@ -29,8 +32,6 @@ if (
 ) {
   continue;
 }
-      // D5 - Thời gian nhắc riêng của từng công việc
-const reminderHours = task.reminderHoursBefore ?? 24;
 
 // Tính thời điểm cần gửi email nhắc
 const reminderTime = new Date(
@@ -49,7 +50,39 @@ if (now < reminderTime) {
         ...(task.assigneeIds || []),
         task.primaryAssigneeId
       ].filter(Boolean);
+      // D7 - Tạo thông báo trong ứng dụng cho từng người dùng
+      const uniqueRecipientIds = [
+        ...new Set(recipientIds.map(id => String(id)))
+      ];
 
+      for (const userId of uniqueRecipientIds) {
+        const eventKey = [
+          userId,
+          String(task._id),
+          new Date(task.dueDate).getTime(),
+          reminderHours
+        ].join(':');
+
+        try {
+          await Notification.updateOne(
+            { eventKey },
+            {
+              $setOnInsert: {
+                userId,
+                taskId: task._id,
+                eventKey,
+                title: 'Công việc sắp đến hạn',
+                message: `Công việc "${task.title}" sắp đến hạn hoàn thành.`,
+                isRead: false,
+                readAt: null
+              }
+            },
+            { upsert: true }
+          );
+        } catch (error) {
+          console.error('D7 - Lỗi tạo thông báo:', error.message);
+        }
+      }
       const users = await User.find({
         _id: { $in: recipientIds }
       }).select('email');
