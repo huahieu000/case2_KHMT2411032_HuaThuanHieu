@@ -24,6 +24,7 @@
     bool isLoading = true;
     String? currentUserId;
     bool isUpdatingSharing = false;
+    bool isDeleting = false; // E5 - Trạng thái đang xóa công việc
     String? error;
 
     @override
@@ -299,7 +300,11 @@
       );
     }
 
+
     Future<void> deleteTask() async {
+      // E5 - Không cho phép xóa nhiều lần
+      if (isDeleting) return;
+
       final confirm = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
@@ -323,7 +328,11 @@
         ),
       );
 
-      if (confirm != true) return;
+      if (!mounted || confirm != true || isDeleting) return;
+
+      setState(() {
+        isDeleting = true;
+      });
 
       try {
         await taskService.deleteTask(widget.taskId);
@@ -341,10 +350,19 @@
         if (!mounted) return;
 
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
+          SnackBar(
+            content: Text('Xóa công việc thất bại: $e'),
+          ),
         );
+      } finally {
+        if (mounted) {
+          setState(() {
+            isDeleting = false;
+          });
+        }
       }
     }
+
     String? getUserId(dynamic user) {
       if (user == null) return null;
 
@@ -368,8 +386,6 @@
           child: Text('Không tìm thấy công việc'),
         );
       }
-
-      final title = task!['title']?.toString() ?? '';
       final description =
           task!['description']?.toString() ?? 'Không có mô tả';
 
@@ -603,9 +619,22 @@
             SizedBox(
               height: 48,
               child: ElevatedButton.icon(
-                onPressed: deleteTask,
-                icon: const Icon(Icons.delete_outline),
-                label: const Text('Xóa công việc'),
+
+                onPressed: isDeleting ? null : deleteTask,
+                icon: isDeleting
+                    ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+                    : const Icon(Icons.delete_outline),
+                label: Text(
+                  isDeleting ? 'Đang xóa...' : 'Xóa công việc',
+                ),
+
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red,
                   foregroundColor: Colors.white,
@@ -659,13 +688,14 @@
 
     @override
     Widget build(BuildContext context) {
-      return WillPopScope(
-        onWillPop: () async {
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {
+          if (didPop) return;
           Navigator.pop(context, hasChanged);
-          return false;
         },
         child: Scaffold(
-          appBar: AppBar(
+        appBar: AppBar(
             title: const Text('Chi tiết công việc'),
           ),
           body: isLoading
