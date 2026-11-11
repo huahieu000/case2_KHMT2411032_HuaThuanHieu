@@ -1,5 +1,7 @@
 const Task = require('../models/Task');
 const User = require('../models/user.model');
+// D6 - Model lưu lịch sử gửi email
+const EmailLog = require('../models/EmailLog');
 const { sendEmail } = require('../service/emailService');
 
 const checkDueReminders = async () => {
@@ -18,13 +20,28 @@ const checkDueReminders = async () => {
 
     for (const task of tasks) {
       // Tránh gửi lại cho cùng một hạn hoàn thành
-      if (
-        task.dueReminderFor &&
-        new Date(task.dueReminderFor).getTime() ===
-          new Date(task.dueDate).getTime()
-      ) {
-        continue;
-      }
+      // D5 - Tránh gửi email trùng cho cùng hạn và cùng cấu hình
+if (
+  task.dueReminderFor &&
+  new Date(task.dueReminderFor).getTime() ===
+    new Date(task.dueDate).getTime() &&
+  (task.dueReminderHoursBefore ?? 24) === reminderHours
+) {
+  continue;
+}
+      // D5 - Thời gian nhắc riêng của từng công việc
+const reminderHours = task.reminderHoursBefore ?? 24;
+
+// Tính thời điểm cần gửi email nhắc
+const reminderTime = new Date(
+  new Date(task.dueDate).getTime() -
+  reminderHours * 60 * 60 * 1000
+);
+
+// Chưa đến thời điểm nhắc thì bỏ qua
+if (now < reminderTime) {
+  continue;
+}
 
       // Lấy danh sách người cần nhận thông báo
       const recipientIds = [
@@ -59,13 +76,33 @@ const checkDueReminders = async () => {
       });
 
       if (result.success) {
-        task.dueReminderSentAt = new Date();
-        task.dueReminderFor = task.dueDate;
-        await task.save();
+  task.dueReminderSentAt = new Date();
+  task.dueReminderFor = task.dueDate;
+  task.dueReminderHoursBefore = reminderHours;
+  await task.save();
+        // D6 - Lưu lịch sử gửi email thành công
+  await EmailLog.create({
+  taskId: task._id,
+  recipientEmail: emails.join(','),
+  subject: 'TaskManager - Công việc sắp đến hạn',
+  status: 'success',
+  sentAt: new Date()
+});
+    console.log('D5 - Đã gửi email nhắc hạn:', task.title);
+} else {
+  // D6 - Lưu lịch sử gửi email thất bại
+  await EmailLog.create({
+    taskId: task._id,
+    recipientEmail: emails.join(','),
+    subject: 'TaskManager - Công việc sắp đến hạn',
+    status: 'failed',
+    errorMessage: result.error?.message || result.error || 'Gửi email thất bại',
+    sentAt: new Date()
+  });
 
-        console.log('D3 - Đã gửi email nhắc hạn:', task.title);
-      }
-    }
+  console.error('D6 - Gửi email thất bại:', task.title);
+}
+  }
   } catch (error) {
     console.error('D3 - Lỗi kiểm tra hạn:', error);
   }

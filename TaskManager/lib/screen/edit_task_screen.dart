@@ -24,6 +24,7 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
 
   String priority = 'medium';
   String status = 'todo';
+  int reminderHoursBefore = 24;
 
   List<dynamic> users = [];
   List<String> selectedAssigneeIds = [];
@@ -101,7 +102,9 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
 
     priority = task['priority']?.toString() ?? 'medium';
     status = task['status']?.toString() ?? 'todo';
-
+    // D5 - Lấy thời gian nhắc đã lưu
+    reminderHoursBefore =
+        int.tryParse(task['reminderHoursBefore']?.toString() ?? '') ?? 24;
     // Lấy danh sách người được giao.
     final assignees = task['assigneeIds'];
 
@@ -309,7 +312,7 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
           'dueDate': dueDate?.toIso8601String(),
           'priority': priority,
           'status': status,
-
+          'reminderHoursBefore': reminderHoursBefore,
           // Người được giao
           'assigneeIds': selectedAssigneeIds,
 
@@ -416,6 +419,33 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
 
             const SizedBox(height: 16),
 
+            // D5 - Chọn thời gian nhắc trước hạn
+            const Text('Nhắc trước hạn hoàn thành'),
+            const SizedBox(height: 8),
+
+            DropdownButtonFormField<int>(
+              initialValue: reminderHoursBefore,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.notifications_active_outlined),
+              ),
+              items: const [
+                DropdownMenuItem(value: 1, child: Text('Trước 1 giờ')),
+                DropdownMenuItem(value: 6, child: Text('Trước 6 giờ')),
+                DropdownMenuItem(value: 12, child: Text('Trước 12 giờ')),
+                DropdownMenuItem(value: 24, child: Text('Trước 24 giờ')),
+                DropdownMenuItem(value: 48, child: Text('Trước 48 giờ')),
+              ],
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() {
+                    reminderHoursBefore = value;
+                  });
+                }
+              },
+            ),
+
+            const SizedBox(height: 20),
             // MỨC ĐỘ ƯU TIÊN
             const Text('Mức độ ưu tiên'),
             const SizedBox(height: 8),

@@ -75,6 +75,17 @@ dueReminderFor: {
   type: Date,
   default: null
 },
+// D5 - Lưu số giờ đã dùng khi gửi email nhắc hạn
+dueReminderHoursBefore: {
+  type: Number,
+  default: null
+},
+// D5 - Cấu hình số giờ nhắc trước hạn
+reminderHoursBefore: {
+  type: Number,
+  enum: [1, 6, 12, 24, 48],
+  default: 24
+},  
 
     // Mức độ ưu tiên
     priority: {
