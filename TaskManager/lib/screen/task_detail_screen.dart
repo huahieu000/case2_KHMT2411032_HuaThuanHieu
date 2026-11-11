@@ -2,6 +2,7 @@
   import 'package:flutter/material.dart';
   import '../services/task_service.dart';
   import 'edit_task_screen.dart';
+  import 'task_activity_screen.dart';
 
   class TaskDetailScreen extends StatefulWidget {
     final String taskId;
@@ -410,6 +411,29 @@
                     ),
                     const SizedBox(height: 15),
                     const Divider(),
+
+                    const SizedBox(height: 12),
+
+// E4 - Xem lịch sử hoạt động công việc
+                    SizedBox(
+                      height: 48,
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => TaskActivityScreen(
+                                taskId: widget.taskId,
+                              ),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.history),
+                        label: const Text('Lịch sử hoạt động'),
+                      ),
+                    ),
+
                     buildInfo(
                       'Mô tả',
                       description,

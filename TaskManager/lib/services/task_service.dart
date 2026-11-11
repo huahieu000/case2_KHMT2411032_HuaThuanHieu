@@ -19,6 +19,17 @@ class TaskService {
     return token;
   }
 
+  // E4 - Lấy lịch sử hoạt động của một công việc
+  Future<List<dynamic>> getTaskActivities(String taskId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/tasks/$taskId/activities'),
+      headers: await _headers(),
+    );
+
+    final data = _handleResponse(response);
+    return List<dynamic>.from(data);
+  }
+
   Future<Map<String, String>> _headers() async {
     final token = await _getToken();
 

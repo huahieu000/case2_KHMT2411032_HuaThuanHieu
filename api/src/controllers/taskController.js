@@ -6,6 +6,8 @@ const { sendEmail } = require('../service/emailService')
 const { notifyTaskChanges } = require('../service/taskChangeNotification');
 // D4 - Gửi email khi công việc hoàn thành
 const { notifyTaskCompleted } = require('../service/taskCompletionNotification');
+// E4 - Model lưu lịch sử hoạt động của công việc
+const TaskActivity = require('../models/TaskActivity');
 // Các giá trị hợp lệ
 const VALID_STATUSES = ['todo', 'in_progress', 'completed'];
 const VALID_PRIORITIES = ['low', 'medium', 'high'];
@@ -345,7 +347,21 @@ if (![1, 6, 12, 24, 48].includes(reminderHoursBefore)) {
       reminderHoursBefore,
       sharedPermissions
     });
-
+    // E4 - Lưu lịch sử tạo công việc
+try {
+  await TaskActivity.create({
+    taskId: task._id,
+    userId: req.userId,
+    action: 'created',
+    description: `Đã tạo công việc "${task.title}"`,
+    changes: {
+      title: task.title,
+      status: task.status
+    }
+  });
+} catch (activityError) {
+  console.error('E4 - Lỗi lưu lịch sử tạo công việc:', activityError);
+}
     // 9. GỬI EMAIL CHO NGƯỜI ĐƯỢC GIAO VÀ NGƯỜI ĐƯỢC CHIA SẺ
     try {
       // Gộp hai danh sách để tránh gửi email trùng
@@ -605,6 +621,26 @@ const oldTask = {
 
       task.status = req.body.status;
       await task.save();  
+
+      // E4 - Lưu lịch sử thay đổi trạng thái
+      if (oldTask.status !== task.status) {
+        try {
+          await TaskActivity.create({
+            taskId: task._id,
+            userId: req.userId,
+            action: 'status_changed',
+            description: `Đã thay đổi trạng thái từ "${oldTask.status}" sang "${task.status}"`,
+            changes: {
+              status: {
+                oldValue: oldTask.status,
+                newValue: task.status
+              }
+            }
+          });
+        } catch (activityError) {
+          console.error('E4 - Lỗi lưu lịch sử trạng thái:', activityError);
+        }
+      }
      // D3/D4 - Thông báo khi Assignee cập nhật trạng thái
 try {
   if (oldTask.status !== 'completed' && task.status === 'completed') {
@@ -906,6 +942,57 @@ const newSharedUserIds =
 Object.assign(task, updateData);
 
 await task.save();
+
+ // E4 - Lưu lịch sử cập nhật công việc
+try {
+  const changes = {};
+
+  const trackedFields = [
+    'title',
+    'description',
+    'dueDate',
+    'priority',
+    'status',
+    'assigneeIds',
+    'primaryAssigneeId'
+  ];
+
+  for (const field of trackedFields) {
+    const oldValue = oldTask[field];
+    const newValue = task[field];
+
+    const normalize = value =>
+      JSON.stringify(value ?? null);
+
+    if (normalize(oldValue) !== normalize(newValue)) {
+      changes[field] = {
+        oldValue,
+        newValue
+      };
+    }
+  }
+
+  if (Object.keys(changes).length > 0) {
+    let action = 'updated';
+
+    if (changes.assigneeIds || changes.primaryAssigneeId) {
+      action = 'assignee_changed';
+    } else if (changes.status) {
+      action = 'status_changed';
+    }
+
+    await TaskActivity.create({
+      taskId: task._id,
+      userId: req.userId,
+      action,
+      description: 'Đã cập nhật thông tin công việc',
+      changes
+    });
+  }
+} catch (activityError) {
+  console.error('E4 - Lỗi lưu lịch sử cập nhật:', activityError);
+}
+
 // D3 - Gửi email khi thông tin quan trọng thay đổi
 // D3/D4 - Thông báo khi Creator hoặc Editor cập nhật công việc
 try {
@@ -1093,6 +1180,47 @@ exports.getTaskStatistics = async (req, res) => {
 
     return res.status(500).json({
       message: 'Không thể thống kê công việc'
+    });
+  }
+};
+
+
+// E4 - Lấy lịch sử hoạt động của một công việc
+exports.getTaskActivities = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({
+        message: 'ID công việc không hợp lệ'
+      });
+    }
+
+    // Chỉ cho phép xem lịch sử công việc mà người dùng có quyền truy cập
+    const task = await Task.findOne({
+      _id: id,
+      ...visibleTasks(req.userId)
+    });
+
+    if (!task) {
+      return res.status(404).json({
+        message: 'Không tìm thấy công việc hoặc không có quyền truy cập'
+      });
+    }
+
+    const activities = await TaskActivity.find({
+      taskId: task._id
+    })
+      .populate('userId', 'name email')
+      .sort({ createdAt: -1, _id: -1 })
+      .lean();
+
+    return res.status(200).json(activities);
+  } catch (error) {
+    console.error('E4 - Lỗi lấy lịch sử hoạt động:', error);
+
+    return res.status(500).json({
+      message: 'Không thể lấy lịch sử hoạt động'
     });
   }
 };

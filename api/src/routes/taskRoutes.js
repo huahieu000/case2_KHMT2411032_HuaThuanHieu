@@ -11,6 +11,8 @@ router.get('/groups', taskController.getTaskGroups);
 router.get('/statistics', taskController.getTaskStatistics);
 router.get('/', taskController.getTasks);
 router.get('/:id', taskController.getTaskById);
+// E4 - Xem lịch sử hoạt động của công việc
+router.get('/:id/activities', taskController.getTaskActivities);
 router.post('/', taskController.createTask);
 router.put('/:id', taskController.updateTask);
 router.delete('/:id', taskController.deleteTask);
